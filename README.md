@@ -24,8 +24,10 @@ npm i --legacy-per-deps
 npm run start
 ```
 
-<h3>Setting up serer app</h3>
-<p>Go to client dir and install node modules</p>
-<p>npm run start</p>
+### Setting Up a server project
 
-# Made in README.md with ❤️
+```
+npm run start
+```
+
+## Made in README.md with ❤️
