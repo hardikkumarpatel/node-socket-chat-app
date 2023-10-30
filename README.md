@@ -1,8 +1,7 @@
 # node-socket-chat-app
-
 # Hi, I'm Hardik Patel! 👋
 
-<h3>Languages and tools User for Chat app</h3> 
+<h3>Tech Stack</h3> 
 <p>
     <img alt="html5" src="https://img.shields.io/badge/-HTML5-E34F26?style=flat-square&logo=html5&logoColor=white" />
     <img alt="css3" src="https://img.shields.io/badge/-CSS3-E34F26?style=flat-square&logo=CSS3&logoColor=white" />
@@ -17,12 +16,10 @@
 
 <h3>How to run client app</h3>
 <p>Go to client dir and install node modules - if getting any error while installing node module use npm i --legacy-per-deps </p>
-```bash
-  npm run start
-```
+<p>npm run start</p>
+
 <h3>How to run Serer app</h3>
 <p>Go to client dir and install node modules</p>
-```bash
-  npm run start
-```
+<p>npm run start</p>
+
 # Made in README.md with ❤️
