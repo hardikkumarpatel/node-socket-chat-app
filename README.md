@@ -1,4 +1,5 @@
 # node-socket-chat-app
+
 # Hi, I'm Hardik Patel! 👋
 
 <h3>Languages and tools User for Chat app</h3> 
@@ -16,10 +17,12 @@
 
 <h3>How to run client app</h3>
 <p>Go to client dir and install node modules - if getting any error while installing node module use npm i --legacy-per-deps </p>
-<p>npm run start</p>
-
+```bash
+  npm run start
+```
 <h3>How to run Serer app</h3>
 <p>Go to client dir and install node modules</p>
-<p>npm run start</p>
-
+```bash
+  npm run start
+```
 # Made in README.md with ❤️
