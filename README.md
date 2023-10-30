@@ -14,11 +14,17 @@
     <img alt="Expressjs" src="https://img.shields.io/badge/-Expressjs-43853d?style=flat-square&logo=Express.js&logoColor=white" />
 </p>
 
-<h3>How to run client app</h3>
-<p>Go to client dir and install node modules - if getting any error while installing node module use npm i --legacy-per-deps </p>
-<p>npm run start</p>
+### Setting Up a client project
 
-<h3>How to run Serer app</h3>
+Install the required node modules:
+```
+npm i --legacy-per-deps
+```
+```
+npm run start
+```
+
+<h3>Setting up serer app</h3>
 <p>Go to client dir and install node modules</p>
 <p>npm run start</p>
 
