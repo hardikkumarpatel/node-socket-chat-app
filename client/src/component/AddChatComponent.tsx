@@ -8,23 +8,24 @@ import {
 } from "@heroicons/react/20/solid";
 import { classNames } from '../Utils';
 import SelectComponent from './SelectComponent';
-import { USERS_LIST_URL } from '../constant/Endpoint.constant';
+import { CREATE_USER_GROUP_CHAT_URL, CREATE_USER_ONE_ON_ONE_CHAT_URL, USERS_LIST_URL } from '../constant/Endpoint.constant';
 import { LocalStorage } from '../Utils/LocalStorage';
 import { USER_STORAGE } from '../constant/Constant';
-import { ClientApiResponse } from '../interface/Common.interface';
-import { ChatUserDTO, UsersDTO } from '../interface/Chat.interface';
 import { useToastContext } from '../context/ToastContext';
+import { ClientApiResponseDTO } from '../interface/Common.interface';
+import { UserDAO } from '../interface/User.interface';
 
 interface AddChatCompoentProps {
     open: boolean;
-    onClose: () => void
+    onClose: () => void,
+    onSuccess: () => void
 }
-const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose }) => {
+const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose, onSuccess }) => {
 
     const { toast } = useToastContext();
     const [isGroupChat, setIsGroupChat] = useState<boolean>(false);
     const [groupName, setGroupName] = useState<string>('');
-    const [usersData, setUsersData] = useState<UsersDTO[]>([]);
+    const [usersData, setUsersData] = useState<UserDAO[]>([]);
     const [groupParticipants, setGroupParticipants] = useState<string[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<null | string>(null);
     const [creatingChat, setCreatingChat] = useState<boolean>(false);
@@ -36,43 +37,91 @@ const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose }) => {
         setGroupParticipants([]);
     }
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setUsersData([]);
         setSelectedUserId(null);
         setGroupName("");
         setGroupParticipants([]);
         setIsGroupChat(false);
         onClose();
-    };
+    }, [onClose]);
 
     const onHandleCreateOnetoOneChat = useCallback(async () => {
         if (!selectedUserId) {
             return toast('Error', 'Please select a user')
         }
         setCreatingChat(true);
-    }, [selectedUserId, toast]);
-
-    const getUsersList = useCallback(async () => {
-        try {
-            const users = await fetch(USERS_LIST_URL, {
-                method: 'GET',
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
-                }
-            });
-            const result = await users.json() as ClientApiResponse<ChatUserDTO>;
-            setUsersData(result.data.users)
-        } catch (Exception: any) {
-            toast('error', Exception.message);
+        const res = await fetch(`${CREATE_USER_ONE_ON_ONE_CHAT_URL}/${selectedUserId}`, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`,
+            }
+        });
+        const { success, statusCode, message } = await res.json() as ClientApiResponseDTO<{}>;
+        if (!success) {
+            return toast('error', message)
         }
-    }, [toast]);
+        if (statusCode === 200) {
+            setCreatingChat(false);
+            toast("error", message)
+        }
+        if (statusCode === 201) {
+            setCreatingChat(false);
+            toast("success", message)
+            onSuccess();
+            handleClose();
+        }
+    }, [selectedUserId, toast, onSuccess, handleClose]);
+
+
+    const onHandleCreateGroupChat = useCallback(async () => {
+        if (!groupName) return toast('error', "Group name is required");
+
+        if (!groupParticipants.length || groupParticipants.length < 2)
+            return toast('error', "There must be at least 2 group participants");
+        setCreatingChat(true);
+        const res = await fetch(`${CREATE_USER_GROUP_CHAT_URL}`, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`,
+            },
+            body: JSON.stringify({
+                name: groupName,
+                participents: groupParticipants
+            })
+        });
+        const { success, message } = await res.json() as ClientApiResponseDTO<{}>;
+        if (!success) {
+            return toast('error', message)
+        }
+
+
+        setCreatingChat(false);
+        toast("success", message)
+        onSuccess();
+        handleClose();
+    }, [toast, groupName, groupParticipants, onSuccess, handleClose]);
 
     useEffect(() => {
-        if (!open) return;
-
+        const getUsersList = async () => {
+            try {
+                const users = await fetch(USERS_LIST_URL, {
+                    method: 'GET',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
+                    }
+                });
+                const result = await users.json() as ClientApiResponseDTO<UserDAO[]>;
+                setUsersData(result.data)
+            } catch (Exception: any) {
+                toast('error', Exception.message);
+            }
+        };
         getUsersList()
-    }, [open, getUsersList]);
+    }, [toast]);
 
     return (
         <Transition.Root show={open} as={Fragment}>
@@ -178,10 +227,10 @@ const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose }) => {
                                                     : "Select a user to chat"
                                             }
                                             value={isGroupChat ? "" : selectedUserId || ""}
-                                            options={usersData.map((user: UsersDTO) => {
+                                            options={usersData.map(({ username, id }: UserDAO) => {
                                                 return {
-                                                    label: user.username,
-                                                    value: user.id,
+                                                    label: username,
+                                                    value: id,
                                                 };
                                             })}
                                             onChange={({ value }) => {
@@ -205,10 +254,10 @@ const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose }) => {
                                             </span>{" "}
                                             <div className="flex justify-start items-center flex-wrap gap-2 mt-3">
                                                 {usersData
-                                                    .filter((user: UsersDTO) =>
+                                                    .filter((user: UserDAO) =>
                                                         groupParticipants.includes(user.id)
                                                     )
-                                                    ?.map((participant: UsersDTO) => {
+                                                    ?.map((participant: UserDAO) => {
                                                         return (
                                                             <div
                                                                 className="inline-flex bg-secondary rounded-full p-2 border outline-none border-gray-300 items-center gap-2"
@@ -250,7 +299,7 @@ const AddChatCompoent: React.FC<AddChatCompoentProps> = ({ open, onClose }) => {
                                         disabled={creatingChat}
                                         type="submit"
                                         className="w-6/12 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-full text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                        onClick={onHandleCreateOnetoOneChat}
+                                        onClick={isGroupChat ? onHandleCreateGroupChat : onHandleCreateOnetoOneChat}
                                     >Create</button>
 
                                 </div>

@@ -13,7 +13,16 @@ const ChatModel = (sequelize: Sequelize) => {
       type: DataTypes.STRING,
       allowNull: false
     },
-    admin: {
+    is_group_chat: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    created_by: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    sender_id: {
       type: DataTypes.UUID,
       references: {
         model: 'users',
@@ -21,10 +30,13 @@ const ChatModel = (sequelize: Sequelize) => {
       },
       allowNull: false
     },
-    is_group_chat: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false
+    receiver_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      allowNull: true
     },
     is_enabled: {
       type: DataTypes.BOOLEAN,
@@ -40,6 +52,7 @@ const ChatModel = (sequelize: Sequelize) => {
     },
     updated_at: {
       type: DataTypes.DATE,
+      defaultValue: new Date()
     },
     deleted_at: {
       type: DataTypes.DATE,

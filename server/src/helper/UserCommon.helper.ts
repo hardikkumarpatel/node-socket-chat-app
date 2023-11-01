@@ -1,5 +1,5 @@
 import Jwt from "jsonwebtoken";
-import { UserDTO } from "../interface/User.interface";
+import { UserDTO, UserOneonOneChatDTO } from "../interface/User.interface";
 import { LocalEnvironmentConfig } from "../utils/LocalEnv";
 const {
     environmentVariables: { ACCESS_TOKEN_SECRET, ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY },
@@ -32,7 +32,23 @@ const generateRefreshToken = (user: UserDTO): string => {
     );
 }
 
+const populateUserOneonOneChatParticipents = (request: UserOneonOneChatDTO) => {
+    console.log("request", request);
+    const { id, admin, user } = request.chat;
+    const prepareChatParticipents = {
+        "id": "",
+        "chat_id": id,
+        "user_id": admin,
+        "user": {
+            ...user
+        }
+    }
+    request.chat.chat_participents.push(prepareChatParticipents)
+    return request;
+};
+
 export {
     generateAccessToken,
-    generateRefreshToken
+    generateRefreshToken,
+    populateUserOneonOneChatParticipents
 }

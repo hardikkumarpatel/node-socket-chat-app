@@ -1,16 +1,12 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RegisterRequestProps } from '../interface/Login.interface';
 import { useToastContext } from '../context/ToastContext';
 import { USER_REGISTER_URL } from '../constant/Endpoint.constant';
+import { ClientApiResponseDTO, UserRegisterRequestDTO } from '../interface/Common.interface';
 
 const RegisterPage = () => {
-    const [form, setForm] = useState<RegisterRequestProps>({
-        email: '',
-        username: '',
-        password: ''
-    });
+    const [form, setForm] = useState<UserRegisterRequestDTO>({} as UserRegisterRequestDTO);
     const navigate = useNavigate();
     const { toast } = useToastContext();
     const handleRedirectToSignin = () => {
@@ -25,7 +21,6 @@ const RegisterPage = () => {
         })
     }
 
-
     const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         try {
@@ -37,16 +32,16 @@ const RegisterPage = () => {
                 },
                 body: JSON.stringify({ email, username, password })
             });
-            const result = await res.json();
-            if (result.success) {
-                toast('success', result.message);
-                await new Promise(r => setTimeout(r, 1000));
-                navigate('/login');
-                return true;
+            const { success, message } = await res.json() as ClientApiResponseDTO<{}>;
+            if (!success) {
+                return toast('error', message);
             }
-            toast('error', result.message);
-        } catch (LoginException) {
-            console.log("Error in login: ", LoginException);
+
+            toast('success', message);
+            await new Promise(r => setTimeout(r, 1000));
+            navigate('/login');
+        } catch (LoginException: any) {
+            toast('error', LoginException.message);
         }
     }
 
@@ -55,7 +50,7 @@ const RegisterPage = () => {
             <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
                 <div className="flex items-center mb-6 text-2xl font-semibold text-gray-900 dark:text-white">
                     <img className="w-8 h-8 mr-2" src="https://flowbite.s3.amazonaws.com/blocks/marketing-ui/logo.svg" alt="logo" />
-                    Hive
+                    Hunt
                 </div>
                 <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
                     <div className="p-6 space-y-4 md:space-y-6 sm:p-8">

@@ -1,12 +1,11 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoginRequestProps } from '../interface/Login.interface';
-import { API_BASE_URL, USER_STORAGE } from '../constant/Constant';
+import { USER_STORAGE } from '../constant/Constant';
 import { useToastContext } from '../context/ToastContext';
 import { useAuthContext } from '../context/AuthContext';
 import { LocalStorage } from '../Utils/LocalStorage';
-import { ClientApiResponse } from '../interface/Common.interface';
+import { ClientApiResponseDTO, UserLoginRequestDTO } from '../interface/Common.interface';
 import { USER_LOGIN_URL } from '../constant/Endpoint.constant';
 import { UserDTO } from '../interface/User.interface';
 
@@ -14,10 +13,7 @@ const LoginPage = () => {
     const navigate = useNavigate();
     const { toast } = useToastContext();
     const { updateAuthContext } = useAuthContext();
-    const [form, setForm] = useState<LoginRequestProps>({
-        username: '',
-        password: ''
-    });
+    const [form, setForm] = useState<UserLoginRequestDTO>({} as UserLoginRequestDTO);
 
     const handleRedirectToSignUp = () => {
         navigate("/register");
@@ -42,16 +38,15 @@ const LoginPage = () => {
                 },
                 body: JSON.stringify({ username, password })
             });
-            const result = await res.json() as ClientApiResponse<UserDTO>;
-            if (result.success) {
-                updateAuthContext(result.data)
-                LocalStorage.set(USER_STORAGE, result.data);
-                navigate('/chat');
-                return true;
+            const { success, message, data } = await res.json() as ClientApiResponseDTO<UserDTO>;
+            if (!success) {
+                return toast('error', message);
             }
-            toast('error', result.message);
-        } catch (LoginException) {
-            console.log("Error in login: ", LoginException);
+            updateAuthContext(data)
+            LocalStorage.set(USER_STORAGE, data);
+            navigate('/chat');
+        } catch (LoginException: any) {
+            toast('error', LoginException.message);
         }
     }
 
@@ -60,7 +55,7 @@ const LoginPage = () => {
             <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
                 <div className="flex items-center mb-6 text-2xl font-semibold text-gray-900 dark:text-white">
                     <img className="w-8 h-8 mr-2" src="https://flowbite.s3.amazonaws.com/blocks/marketing-ui/logo.svg" alt="logo" />
-                    Hive
+                    Hunt
                 </div>
                 <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
                     <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
@@ -94,7 +89,6 @@ const LoginPage = () => {
                     Design by HARDIK PATEL
                 </p>
             </div>
-            {/* <ToastComponent/> */}
         </section>
     )
 }

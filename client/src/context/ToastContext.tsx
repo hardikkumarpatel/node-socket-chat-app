@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ToastProps } from './ToastContextType';
 import ToastComponent from '../component/Toast';
+import { ToastDTO } from '../interface/Common.interface';
 
 const ToastContext = React.createContext<{
     toast: (type: string, message: string, duration?: number) => Promise<void>
@@ -10,14 +10,10 @@ const ToastContext = React.createContext<{
 const useToastContext = () => React.useContext(ToastContext);
 
 const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [toast, setToast] = useState<ToastProps>({
-        open: false,
-        type: 'success',
-        message: ''
-    });
+    const [toast, setToast] = useState<ToastDTO>({} as ToastDTO);
 
     const onCloseToast = () => {
-        setToast({} as ToastProps);
+        setToast({} as ToastDTO);
     };
 
     const openToast = async (type = 'success', message = '', duration = 3000) => {

@@ -51,16 +51,28 @@ const sequelize = new Sequelize(
     {
         host: DB_HOST as string,
         dialect: 'postgres',
-        logging: false,
+        logging: console.log,
         schema: 'public',
     },
 );
 const User = UserModel(sequelize);
 const Chat = ChatModel(sequelize);
 const ChatParticipents = ChatParticipentsModel(sequelize);
-Chat.belongsTo(User, { foreignKey: 'admin' })
-Chat.belongsTo(ChatParticipents, { foreignKey: 'id' })
-ChatParticipents.belongsTo(User, { foreignKey: 'user_id' })  
-ChatParticipents.belongsTo(Chat,{foreignKey: 'chat_id'})
+Chat.belongsTo(User, { 
+    foreignKey: 'sender_id',
+    targetKey: 'id',
+ })
+Chat.hasMany(ChatParticipents, { 
+    foreignKey: 'chat_id', 
+    as: 'chat_participents'
+})
+ChatParticipents.belongsTo(Chat, { 
+    foreignKey: 'chat_id',
+    targetKey: 'id'
+})  
+ChatParticipents.belongsTo(User,{ 
+    foreignKey: 'user_id',
+    targetKey: 'id'
+})
 
 export default sequelize as Sequelize;

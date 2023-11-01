@@ -29,6 +29,7 @@ const ChatParticipentsModel = (sequelize: Sequelize) => {
     },
     updated_at: {
       type: DataTypes.DATE,
+      defaultValue: new Date()
     },
     deleted_at: {
       type: DataTypes.DATE,

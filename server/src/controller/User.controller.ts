@@ -43,6 +43,12 @@ const loginUserController = asyncHander(async (req: Request, res: Response, next
 
 const registerUserController = asyncHander(async (req: Request, res: Response) => {
     const { body: { email, username, password, role } } = req;
+    if (!username) {
+        throw new ApiErrorHandler(StatusCodes.BAD_REQUEST, 'Username is required')
+    }
+    if (!password) {
+        throw new ApiErrorHandler(StatusCodes.BAD_REQUEST, 'Password is required')
+    }
 
     const getExistingUser = await UserModel.findOne({ where: { username } });
     if (getExistingUser) {
@@ -56,7 +62,7 @@ const registerUserController = asyncHander(async (req: Request, res: Response) =
         role: role || USER_ROLE.USER
     })
     if (user) {
-        return res.status(StatusCodes.CREATED).send(new ApiResponseHandler(StatusCodes.CREATED, "Users registered successfully", { user }))
+        return res.status(StatusCodes.CREATED).send(new ApiResponseHandler(StatusCodes.CREATED, "Users registered successfully", user))
     }
 });
 

@@ -2,9 +2,10 @@ import { ErrorRequestHandler } from 'express';
 import ApiErrorHandler from '../utils/ApiErrorHandler';
 
 const useErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
-    const { statusCode, message, stack } = err as ApiErrorHandler
-    console.log("statusCode", statusCode)
-    console.log("message", message)
+    let { statusCode, message, stack } = err as ApiErrorHandler
+    if(!statusCode) {
+        statusCode = 500;
+    }
     const error = new ApiErrorHandler(statusCode, message, stack);
     const response = {
         ...error,
