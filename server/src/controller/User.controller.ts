@@ -16,29 +16,35 @@ const loginUserController = asyncHander(async (req: Request, res: Response, next
         throw new ApiErrorHandler(StatusCodes.BAD_REQUEST, 'Username is required')
     }
 
-    const user = await UserModel.findOne({ where: { username: username } });
+    const user = await UserModel.findOne({
+        where: { username: username },
+        attributes: {
+            exclude: ['is_enabled', 'is_deleted', 'created_at', 'deleted_at']
+        }
+    });
     if (!user) {
         throw new ApiErrorHandler(StatusCodes.NOT_FOUND, "User does not exists!")
     }
 
-    const { password: UserPassword } = user.dataValues as UserDTO
+    const { password: UserPassword, id } = user.dataValues as UserDTO
     if (UserPassword !== password) {
         throw new ApiErrorHandler(StatusCodes.UNAUTHORIZED, "Invalid user credentials");
     }
 
     const accessToken = generateAccessToken(user.dataValues);
     const refreshToken = generateRefreshToken(user.dataValues);
-    await UserModel.update({ refresh_token: refreshToken }, { where: { id: user.dataValues.id }});
+    delete user.dataValues.password;
 
+    await UserModel.update({ refresh_token: refreshToken }, { where: { id } });
     const options = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production"
     }
 
     return res.status(StatusCodes.OK)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .send(new ApiResponseHandler(StatusCodes.OK, "User logged in successfully", { accessToken, refreshToken, user }))
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .send(new ApiResponseHandler(StatusCodes.OK, "User logged in successfully", { accessToken, refreshToken, user }))
 });
 
 const registerUserController = asyncHander(async (req: Request, res: Response) => {

@@ -16,13 +16,13 @@ class AppServer {
     public app: express.Application;
     public server: Server;
     constructor() {
-        void this.startServer();
+        void this.startExpressEngine();
     }
 
-    private startServer = async (): Promise<void> => {
+    private startExpressEngine = async (): Promise<void> => {
         this.app = express();
         await this.intiDB();
-        void this.initiMiddleware();
+        void this.initMiddleware();
         void this.initRoutes();
         void this.initSocketEngine();
         Promise.resolve(this.server.listen(PORT, () => console.log("Server is running on PORT", PORT)))
@@ -43,7 +43,7 @@ class AppServer {
 
     }
 
-    private initiMiddleware = (): void => {
+    private initMiddleware = (): void => {
         this.app.use(express.urlencoded({ extended: true }));
         this.app.use(express.json({ limit: '6kb' }));
         this.app.use(Morgan('dev'));

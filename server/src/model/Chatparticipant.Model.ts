@@ -22,17 +22,6 @@ const ChatParticipentsModel = (sequelize: Sequelize) => {
         key: 'id'
       },
       allowNull: false
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      defaultValue: new Date()
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      defaultValue: new Date()
-    },
-    deleted_at: {
-      type: DataTypes.DATE,
     }
   }, {
     timestamps: false

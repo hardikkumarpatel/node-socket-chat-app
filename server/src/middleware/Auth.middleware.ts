@@ -18,15 +18,15 @@ const useAuthHandler = asyncHander(async (req: CustomRequest, res: Response, nex
     if (!token) {
         throw new ApiErrorHandler(StatusCodes.UNAUTHORIZED, "Unauthorised request! access token is missing");
     }
-        const decodeToken = Jwt.verify(token, ACCESS_TOKEN_SECRET);
-        const { id } = decodeToken as UserDTO;
-        const user = await UserModel.findOne({ where: { id } });
-        if (!user) {
-            throw new ApiErrorHandler(StatusCodes.UNAUTHORIZED, "Invalid user access token");
-        }
+    const decodeToken = Jwt.verify(token, ACCESS_TOKEN_SECRET);
+    const { id } = decodeToken as UserDTO;
+    const user = await UserModel.findOne({ where: { id } });
+    if (!user) {
+        throw new ApiErrorHandler(StatusCodes.UNAUTHORIZED, "Invalid user access token");
+    }
 
-        req.user = user.dataValues as UserDTO;
-        next();    
+    req.user = user.dataValues as UserDTO;
+    next();
 });
 
 export default useAuthHandler;

@@ -7,11 +7,7 @@ export interface UserDTO {
     login_type: string,
     avatar_url: string;
     refresh_token: string,
-    is_enabled: boolean,
-    is_deleted: boolean,
-    created_at: Date,
     updated_at: Date,
-    deleted_at: Date
 }
 interface OneonOneChatParticipentsDTO {
     id: string;
