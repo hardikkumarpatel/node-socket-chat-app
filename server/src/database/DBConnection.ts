@@ -51,7 +51,7 @@ const sequelize = new Sequelize(
     {
         host: DB_HOST as string,
         dialect: 'postgres',
-        logging: console.log,
+        logging: false,
         schema: 'public',
     },
 );

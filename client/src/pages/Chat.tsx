@@ -12,10 +12,14 @@ import { PaperAirplaneIcon } from "@heroicons/react/20/solid";
 import { classNames, getChatObjectMetadata } from "../Utils";
 import { UserDAO } from "../interface/User.interface";
 import TypingComponent from "../component/TypingComponent";
+import { useSocketContext } from "../context/SocketContent";
+import { CHAT_EVENT_ENUM } from "../constant/Socket.constant";
+import MessageItemComponent from "../component/MessageItemComponent";
 
 const ChatPage: React.FC<{}> = () => {
     const { toast } = useToastContext();
     const { context } = useAuthContext();
+    const { socket } = useSocketContext();
     const [openAddChatDialog, setOpenAddChatDialog] = useState<boolean>(false);
     const [userChatsList, setUserChatsList] = useState<UserChatListDTO[]>([] as UserChatListDTO[]);
     const [message, setMessage] = useState<string>("");
@@ -23,7 +27,69 @@ const ChatPage: React.FC<{}> = () => {
     const [localSearchQuery, setLocalSearchQuery] = useState<string>("");
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
     const [isTyping, setIsTyping] = useState<boolean>(false);
+    const [selfTyping, setSelfTyping] = useState(false); // To track if the current user is typing
+    const [isConnected, setIsConnected] = useState(false); // For tracking socket connection
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const handleOnMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // Update the message state with the current input value
+        setMessage(event.target.value);
+        // If socket doesn't exist or isn't connected, exit the function
+        if (!socket || !isConnected) return;
+
+        // Check if the user isn't already set as typing
+        if (!selfTyping) {
+            // Set the user as typing
+            setSelfTyping(true);
+            // Emit a typing event to the server for the current chat
+            socket.emit(CHAT_EVENT_ENUM.TYPING_EVENT, currentUserChat.id);
+        }
+
+        // Clear the previous timeout (if exists) to avoid multiple setTimeouts from running
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Define a length of time (in milliseconds) for the typing timeout
+        const timerLength = 3000;
+        // Set a timeout to stop the typing indication after the timerLength has passed
+        typingTimeoutRef.current = setTimeout(() => {
+            // Emit a stop typing event to the server for the current chat
+            socket.emit(CHAT_EVENT_ENUM.STOP_TYPING_EVENT, currentUserChat.id);
+            // Reset the user's typing state
+            setSelfTyping(false);
+        }, timerLength);
+    };
+
+    const sendChatMessage = async () => {
+        // If no current chat ID exists or there's no socket connection, exit the function
+        if (!currentUserChat.id || !socket) return;
+
+        // Emit a STOP_TYPING_EVENT to inform other users/participants that typing has stopped
+        socket.emit(CHAT_EVENT_ENUM.STOP_TYPING_EVENT, currentUserChat.id);
+
+        // Use the requestHandler to send the message and handle potential response or error
+        // await requestHandler(
+        //   // Try to send the chat message with the given message and attached files
+        //   async () =>
+        //     await sendMessage(
+        //       currentChat.current?._id || "", // Chat ID or empty string if not available
+        //       message, // Actual text message
+        //       attachedFiles // Any attached files
+        //     ),
+        //   null,
+        //   // On successful message sending, clear the message input and attached files, then update the UI
+        //   (res) => {
+        //     setMessage(""); // Clear the message input
+        //     setAttachedFiles([]); // Clear the list of attached files
+        //     setMessages((prev) => [res.data, ...prev]); // Update messages in the UI
+        //     updateChatLastMessage(currentChat.current?._id || "", res.data); // Update the last message in the chat
+        //   },
+
+        //   // If there's an error during the message sending process, raise an alert
+        //   alert
+        // );
+    };
 
     const getUserChatList = useCallback(async () => {
         try {
@@ -57,6 +123,23 @@ const ChatPage: React.FC<{}> = () => {
             // getMessages();
         }
     }, [getUserChatList])
+
+    const onConnectSocket = useCallback(() => setIsConnected(true), [])
+    const onDisconnectSocket = useCallback(() => setIsConnected(false), [])
+
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on(CHAT_EVENT_ENUM.CONNECTED_EVENT, onConnectSocket);
+        // Listener for when the socket disconnects.
+        socket.on(CHAT_EVENT_ENUM.DISCONNECT_EVENT, onDisconnectSocket);
+
+        return () => {
+            socket.on(CHAT_EVENT_ENUM.CONNECTED_EVENT, onConnectSocket);
+            socket.on(CHAT_EVENT_ENUM.DISCONNECT_EVENT, onDisconnectSocket);
+        }
+
+    }, [socket, onConnectSocket, onDisconnectSocket]);
 
     return (
         <>
@@ -190,10 +273,10 @@ const ChatPage: React.FC<{}> = () => {
                                         {isTyping ? <TypingComponent /> : null}
                                         {/* {messages?.map((msg) => {
                       return (
-                        <MessageItem
+                        <MessageItemComponent
                           key={msg._id}
-                          isOwnMessage={msg.sender?._id === user?._id}
-                          isGroupChatMessage={currentChat.current?.isGroupChat}
+                          isOwnMessage={msg.sender?._id === context?.user.id}
+                          isGroupChatMessage={currentUserChat.is_group_chat}
                           message={msg}
                         />
                       );
@@ -206,7 +289,7 @@ const ChatPage: React.FC<{}> = () => {
                                     className="w-full font-light bg-gray-50 border outline-none border-gray-300 text-gray-900  rounded-lg focus:ring-primary-600 focus:border-primary-600 block py-4 px-5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                                     placeholder="Message"
                                     value={message}
-                                //   onChange={handleOnMessageChange}
+                                    onChange={handleOnMessageChange}
                                 //   onKeyDown={(e) => {
                                 //     if (e.key === "Enter") {
                                 //       sendChatMessage();
@@ -214,7 +297,7 @@ const ChatPage: React.FC<{}> = () => {
                                 //   }}
                                 />
                                 <button
-                                    //   onClick={sendChatMessage}
+                                    onClick={sendChatMessage}
                                     disabled={!message}
                                     className="p-4 rounded-full bg-dark hover:bg-gray-300 disabled:opacity-50"
                                 >

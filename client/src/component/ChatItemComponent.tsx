@@ -140,7 +140,7 @@ const ChatItemComponent: React.FC<{
         </div>
         <div className="w-full">
           <p className="font-medium text-gray-200">
-            {getChatObjectMetadata(chat, context?.user as UserDAO).title}
+            {getChatObjectMetadata(chat, context?.user as UserDAO).title?.substring(0, 15) + ' ...'}
           </p>
           <div className="w-full inline-flex items-center text-left">
             {/* {chat.lastMessage && chat.lastMessage.attachments.length > 0 ? (

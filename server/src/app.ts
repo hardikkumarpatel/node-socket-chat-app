@@ -3,7 +3,7 @@ dotenv.config();
 import express from 'express';
 import { createServer, Server } from 'http';
 import { LocalEnvironmentConfig } from './utils/LocalEnv';
-import { SockerServer } from './Socket';
+import { SockerServer } from './socket/index';
 import Morgan from 'morgan';
 import CORS from 'cors'
 import sequelize from './database/DBConnection';
