@@ -108,6 +108,7 @@ export class SockerServer {
     };
 
     static emitSocketEvent = (req: CustomRequest, roomId: string, event, payload) => {
-        req.app.get("IO").in(roomId).emit(event, payload);
+        const IO = req.app.get("IO") as Server;
+        IO.in(roomId).emit(event, payload);
     };
 }

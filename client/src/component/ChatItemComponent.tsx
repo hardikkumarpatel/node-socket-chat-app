@@ -1,6 +1,5 @@
 import {
   EllipsisVerticalIcon,
-  PaperClipIcon,
   TrashIcon,
 } from "@heroicons/react/20/solid";
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
@@ -9,47 +8,112 @@ import { useAuthContext } from "../context/AuthContext";
 import { classNames, getChatObjectMetadata } from "../Utils";
 import { UserDAO } from "../interface/User.interface";
 import moment from 'moment';
-import { UserChatListDTO } from "../interface/Chat.interface";
+import GroupChatDetailsModalComponent from "./GroupChatDetailsModelComponent";
+import { ChatAndParticipentsDTO } from "../interface/Chat.interface";
+import { DELETE_USER_GROUP_CHAT_URL, DELETE_USER_ONE_ON_ONE_CHAT_URL } from "../constant/Endpoint.constant";
+import { LocalStorage } from "../Utils/LocalStorage";
+import { USER_STORAGE } from "../constant/Constant";
+import { ClientApiResponseDTO } from "../interface/Common.interface";
+import { useToastContext } from "../context/ToastContext";
+import DeleteComponent from "./DeleteModelComponent";
+
+interface DeleteProps {
+ open: boolean;
+  type: string;
+  name: string
+}
 
 const ChatItemComponent: React.FC<{
-  chat: UserChatListDTO;
-  onClick: (chat: UserChatListDTO) => void;
+  chat: ChatAndParticipentsDTO;
+  onClick: (chat: ChatAndParticipentsDTO) => void;
   isActive?: boolean;
   unreadCount?: number;
   onChatDelete: (ChatID: string) => void;
 }> = ({ chat, onClick, isActive, unreadCount = 0, onChatDelete }) => {
   const { context } = useAuthContext();
+  const { toast } = useToastContext();
   const [openOptions, setOpenOptions] = useState(false);
-  const [openGroupInfo, setOpenGroupInfo] = useState(false);
+  const [isOpenGroupInfo, setIsOpenGroupInfo] = useState<boolean>(false);
+  const [openDeleteModel, setOpenDeleteModel] = useState<DeleteProps>({} as DeleteProps);
 
-  // Define an asynchronous function named 'deleteChat'.
-  // const deleteChat = async () => {
-  //   await requestHandler(
-  //     //  A callback function that performs the deletion of a one-on-one chat by its ID.
-  //     async () => await deleteOneOnOneChat(chat._id),
-  //     null,
-  //     // A callback function to be executed on success. It will call 'onChatDelete'
-  //     // function with the chat's ID as its parameter.
-  //     () => {
-  //       onChatDelete(chat._id);
-  //     },
-  //     // The 'alert' function (likely to display error messages to the user.
-  //     alert
-  //   );
-  // };
+  const onHandleDeleteOneonOneChat = async () => {
+    try {
+      const users = await fetch(`${DELETE_USER_ONE_ON_ONE_CHAT_URL}/${chat.id}`, {
+        method: 'DELETE',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
+        }
+      });
+      const { success, message } = await users.json() as ClientApiResponseDTO<{}>;
+      if (!success) {
+        return toast('error', message)
+      }
+      toast('success', message);
+      onChatDelete(chat.id);
+    } catch (Exception: any) {
+      toast('error', Exception.message);
+    }
+  };
+  const onHandleDeleteGroupChat = async () => {
+    try {
+      const users = await fetch(`${DELETE_USER_GROUP_CHAT_URL}/${chat.id}`, {
+        method: 'DELETE',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
+        }
+      });
+      const { success, message } = await users.json() as ClientApiResponseDTO<{}>;
+      if (!success) {
+        return toast('error', message)
+      }
+      toast('success', message);
+      onChatDelete(chat.id);
+    } catch (Exception: any) {
+      toast('error', Exception.message);
+    }
+  };
+
+  const onOpenDeleteConfirmation = (type: string, name: string = '') => {
+    setOpenDeleteModel({
+      'open': true,
+      type,
+      name
+    });
+  }
+
+  const onHandleConfirmDelete = async () => {
+    const { type } = openDeleteModel;
+    if([type].includes('single')) {
+      await onHandleDeleteOneonOneChat();
+      return true;
+    }
+
+    await onHandleDeleteGroupChat();
+  };
 
   if (!chat) return;
 
   return (
     <>
-      {/* <GroupChatDetailsModal
-          open={openGroupInfo}
+      {isOpenGroupInfo && (
+        <GroupChatDetailsModalComponent
+          open={isOpenGroupInfo}
           onClose={() => {
-            setOpenGroupInfo(false);
+            setIsOpenGroupInfo(false);
           }}
-          chatId={chat._id}
-          onGroupDelete={onChatDelete}
-        /> */}
+          chatID={chat.id}
+          onGroupDelete={() => onOpenDeleteConfirmation('group', chat.name)}
+        />
+      )}
+      {openDeleteModel['open'] &&
+        <DeleteComponent
+          open={openDeleteModel['open']}
+          title="Are you sure want to delete this record?"
+          message={openDeleteModel['name']}
+          onClose={() => setOpenDeleteModel({} as DeleteProps)}
+          onSuccess={() => onHandleConfirmDelete()} />}
       <div
         role="button"
         onClick={() => onClick(chat)}
@@ -80,7 +144,7 @@ const ChatItemComponent: React.FC<{
               <p
                 onClick={(e) => {
                   e.stopPropagation();
-                  setOpenGroupInfo(true);
+                  setIsOpenGroupInfo(true);
                 }}
                 role="button"
                 className="p-4 w-full rounded-lg inline-flex items-center"
@@ -91,6 +155,7 @@ const ChatItemComponent: React.FC<{
               <p
                 onClick={(e) => {
                   e.stopPropagation();
+                  onOpenDeleteConfirmation('single', chat.name);
                   // const ok = confirm(
                   //   "Are you sure you want to delete this chat?"
                   // );

@@ -51,6 +51,8 @@ const createUserOneOnOneChatController = asyncHander(async (req: CustomRequest, 
     const getUserOneonOneChatDetail = await ChatModel.findOne({
         where: {
             is_group_chat: false,
+            is_enabled: true,
+            is_deleted: false,
             created_by: senderUserID,
             sender_id: senderUserID,
             receiver_id: receiverUserID

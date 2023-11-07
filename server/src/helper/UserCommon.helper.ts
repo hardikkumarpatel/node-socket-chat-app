@@ -33,7 +33,6 @@ const generateRefreshToken = (user: UserDTO): string => {
 }
 
 const populateUserOneonOneChatParticipents = (request: UserOneonOneChatDTO) => {
-    console.log("request", request);
     const { id, admin, user } = request.chat;
     const prepareChatParticipents = {
         "id": "",

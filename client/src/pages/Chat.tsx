@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import AddChatCompoent from "../component/AddChatComponent";
-import { GET_USER_CREATED_CHAT_URL } from "../constant/Endpoint.constant";
+import { GET_CHAT_MESSAGE_URL, GET_USER_CREATED_CHAT_URL, SEND_CHAT_MESSAGE_URL } from "../constant/Endpoint.constant";
 import { LocalStorage } from "../Utils/LocalStorage";
 import { USER_ACTIVE_CHAT_SESSION, USER_STORAGE } from "../constant/Constant";
 import ChatItemComponent from "../component/ChatItemComponent";
 import { useToastContext } from "../context/ToastContext";
 import { ClientApiResponseDTO } from "../interface/Common.interface";
-import { UserChatListDTO } from "../interface/Chat.interface";
+import { ChatAndParticipentsDTO, ChatMessageDTO } from "../interface/Chat.interface";
 import { useAuthContext } from "../context/AuthContext";
 import { PaperAirplaneIcon } from "@heroicons/react/20/solid";
 import { classNames, getChatObjectMetadata } from "../Utils";
@@ -15,20 +15,23 @@ import TypingComponent from "../component/TypingComponent";
 import { useSocketContext } from "../context/SocketContent";
 import { CHAT_EVENT_ENUM } from "../constant/Socket.constant";
 import MessageItemComponent from "../component/MessageItemComponent";
+import { Socket } from "socket.io-client";
 
 const ChatPage: React.FC<{}> = () => {
     const { toast } = useToastContext();
     const { context } = useAuthContext();
     const { socket } = useSocketContext();
     const [openAddChatDialog, setOpenAddChatDialog] = useState<boolean>(false);
-    const [userChatsList, setUserChatsList] = useState<UserChatListDTO[]>([] as UserChatListDTO[]);
-    const [message, setMessage] = useState<string>("");
-    const [currentUserChat, setCurrentUserChat] = useState<UserChatListDTO>({} as UserChatListDTO);
+    const [userChatsList, setUserChatsList] = useState<ChatAndParticipentsDTO[]>([] as ChatAndParticipentsDTO[]);
+    const [messages, setMessage] = useState<string>("");
+    const [currentUserChat, setCurrentUserChat] = useState<ChatAndParticipentsDTO>({} as ChatAndParticipentsDTO);
     const [localSearchQuery, setLocalSearchQuery] = useState<string>("");
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
     const [isTyping, setIsTyping] = useState<boolean>(false);
-    const [selfTyping, setSelfTyping] = useState(false); // To track if the current user is typing
-    const [isConnected, setIsConnected] = useState(false); // For tracking socket connection
+    const [selfTyping, setSelfTyping] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [chatMessages, setChatMessages] = useState<ChatMessageDTO[]>([]);
+    const [unreadMessages, setUnreadMessages] = useState<ChatMessageDTO[]>([]);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleOnMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,35 +64,136 @@ const ChatPage: React.FC<{}> = () => {
         }, timerLength);
     };
 
+    const getMessages = useCallback(async () => {
+        if (!currentUserChat.id) {
+            return toast('error', "No chat is selected")
+        };
+
+        if (!socket) {
+            return toast('error', "Socket is not available")
+        }
+
+        // Emit an event to join the current chat
+        socket.emit(CHAT_EVENT_ENUM.JOIN_CHAT_EVENT, currentUserChat.id);
+        // Filter out unread messages from the current chat as those will be read
+        setUnreadMessages(
+            unreadMessages.filter((msg) => msg.id !== currentUserChat.id)
+        );
+
+        try {
+            setLoadingMessages(true);
+            const users = await fetch(`${GET_CHAT_MESSAGE_URL}/${currentUserChat.id}`, {
+                method: 'GET',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
+                },
+            });
+            const { success, message, data } = await users.json() as ClientApiResponseDTO<ChatMessageDTO[]>;
+            if (!success) {
+                return toast('error', message)
+            }
+
+            toast('success', message);
+            setLoadingMessages(false);
+            setChatMessages(data);
+        } catch (Exception: any) {
+            toast('error', Exception.message);
+        }
+    }, [currentUserChat, socket, toast, unreadMessages]);
+
     const sendChatMessage = async () => {
         // If no current chat ID exists or there's no socket connection, exit the function
         if (!currentUserChat.id || !socket) return;
 
         // Emit a STOP_TYPING_EVENT to inform other users/participants that typing has stopped
         socket.emit(CHAT_EVENT_ENUM.STOP_TYPING_EVENT, currentUserChat.id);
+        try {
+            const users = await fetch(`${SEND_CHAT_MESSAGE_URL}/${currentUserChat.id}`, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`
+                },
+                body: JSON.stringify({
+                    content: messages
+                })
+            });
+            const { success, message, data } = await users.json() as ClientApiResponseDTO<ChatMessageDTO>;
+            if (!success) {
+                return toast('error', message)
+            }
 
-        // Use the requestHandler to send the message and handle potential response or error
-        // await requestHandler(
-        //   // Try to send the chat message with the given message and attached files
-        //   async () =>
-        //     await sendMessage(
-        //       currentChat.current?._id || "", // Chat ID or empty string if not available
-        //       message, // Actual text message
-        //       attachedFiles // Any attached files
-        //     ),
-        //   null,
-        //   // On successful message sending, clear the message input and attached files, then update the UI
-        //   (res) => {
-        //     setMessage(""); // Clear the message input
-        //     setAttachedFiles([]); // Clear the list of attached files
-        //     setMessages((prev) => [res.data, ...prev]); // Update messages in the UI
-        //     updateChatLastMessage(currentChat.current?._id || "", res.data); // Update the last message in the chat
-        //   },
-
-        //   // If there's an error during the message sending process, raise an alert
-        //   alert
-        // );
+            toast('success', message);
+            setMessage("");
+            setChatMessages((prev) => [data, ...prev]);
+            // updateChatLastMessage(currentChat.current?._id || "", res.data); // Update the last message in the chat
+        } catch (Exception: any) {
+            toast('error', Exception.message);
+        }
     };
+
+    const handleOnSocketTyping = useCallback(async (chatId: string) => {
+        if (chatId !== currentUserChat.id) return;
+        setIsTyping(true);
+    }, [currentUserChat]);
+
+    const handleOnSocketStopTyping = useCallback(async (chatId: string) => {
+        if (chatId !== currentUserChat.id) return;
+        setIsTyping(false);
+    }, [currentUserChat]);
+
+    const onMessageReceived = useCallback(async (message: ChatMessageDTO) => {
+        if (message.chat_id !== currentUserChat.id) {
+            setUnreadMessages((prev) => [message, ...prev]);
+        } else {
+            // If it belongs to the current chat, update the messages list for the active chat
+            setChatMessages((prev) => [message, ...prev]);
+        }
+
+        // Update the last message for the chat to which the received message belongs
+        // updateChatLastMessage(message.chat || "", message);
+    }, [currentUserChat]);
+
+    const onNewChat = useCallback(async (chat: ChatAndParticipentsDTO) => {
+        setUserChatsList((prev) => [chat, ...prev]);
+    }, []);
+
+    const onChatLeave = useCallback(async (chat: ChatAndParticipentsDTO) => {
+        // Check if the chat the user is leaving is the current active chat.
+        if (chat.id === currentUserChat.id) {
+            // If the user is in the group chat they're leaving, close the chat window.
+            //   currentChat.current = null;
+            // Remove the currentChat from local storage.
+            setCurrentUserChat({} as ChatAndParticipentsDTO)
+            LocalStorage.remove(USER_ACTIVE_CHAT_SESSION);
+        }
+        // Update the chats by removing the chat that the user left.
+        setUserChatsList((prev) => prev.filter((c) => c.id !== chat.id));
+    }, [currentUserChat]);
+
+    const onGroupNameChange = useCallback(async (chat: ChatAndParticipentsDTO) => {
+        // Check if the chat being changed is the currently active chat
+        if (chat.id === currentUserChat.id) {
+            // Update the current chat with the new details
+            setCurrentUserChat(chat)
+            // Save the updated chat details to local storage
+            LocalStorage.set(USER_ACTIVE_CHAT_SESSION, chat);
+        }
+
+        // Update the list of chats with the new chat details
+        setUserChatsList((prev) => [
+            // Map through the previous chats
+            ...prev.map((c) => {
+                // If the current chat in the map matches the chat being changed, return the updated chat
+                if (c.id === chat.id) {
+                    return chat;
+                }
+                // Otherwise, return the chat as-is without any changes
+                return c;
+            }),
+        ]);
+    }, [currentUserChat]);
 
     const getUserChatList = useCallback(async () => {
         try {
@@ -100,7 +204,7 @@ const ChatPage: React.FC<{}> = () => {
                     Authorization: `Bearer ${LocalStorage.get(USER_STORAGE)['accessToken']}`,
                 }
             });
-            const { success, message, data } = await res.json() as ClientApiResponseDTO<UserChatListDTO[]>;
+            const { success, message, data } = await res.json() as ClientApiResponseDTO<ChatAndParticipentsDTO[]>;
             if (!success) {
                 return toast('error', message)
             }
@@ -116,13 +220,12 @@ const ChatPage: React.FC<{}> = () => {
         const currentUserChatSession = LocalStorage.get(USER_ACTIVE_CHAT_SESSION);
         if (currentUserChatSession) {
             setCurrentUserChat(currentUserChatSession)
-            // currentUserChat.current = currentUserChatSession;
             // If the socket connection exists, emit an event to join the specific chat using its ID.
-            // socket?.emit(JOIN_CHAT_EVENT, _currentChat.current?._id);
+            socket?.emit(CHAT_EVENT_ENUM.JOIN_CHAT_EVENT, currentUserChat.id);
             // Fetch the messages for the current chat.
-            // getMessages();
+            getMessages();
         }
-    }, [getUserChatList])
+    }, [])
 
     const onConnectSocket = useCallback(() => setIsConnected(true), [])
     const onDisconnectSocket = useCallback(() => setIsConnected(false), [])
@@ -131,15 +234,19 @@ const ChatPage: React.FC<{}> = () => {
         if (!socket) return;
 
         socket.on(CHAT_EVENT_ENUM.CONNECTED_EVENT, onConnectSocket);
-        // Listener for when the socket disconnects.
         socket.on(CHAT_EVENT_ENUM.DISCONNECT_EVENT, onDisconnectSocket);
-
+        socket.on(CHAT_EVENT_ENUM.TYPING_EVENT, handleOnSocketTyping);
+        socket.on(CHAT_EVENT_ENUM.STOP_TYPING_EVENT, handleOnSocketStopTyping);
+        socket.on(CHAT_EVENT_ENUM.MESSAGE_RECEIVED_EVENT, onMessageReceived);
+        socket.on(CHAT_EVENT_ENUM.NEW_CHAT_EVENT, onNewChat);
+        socket.on(CHAT_EVENT_ENUM.LEAVE_CHAT_EVENT, onChatLeave);
+        socket.on(CHAT_EVENT_ENUM.UPDATE_GROUP_NAME_EVENT, onGroupNameChange);
         return () => {
-            socket.on(CHAT_EVENT_ENUM.CONNECTED_EVENT, onConnectSocket);
-            socket.on(CHAT_EVENT_ENUM.DISCONNECT_EVENT, onDisconnectSocket);
+            socket.off(CHAT_EVENT_ENUM.CONNECTED_EVENT, onConnectSocket);
+            socket.off(CHAT_EVENT_ENUM.DISCONNECT_EVENT, onDisconnectSocket);
         }
 
-    }, [socket, onConnectSocket, onDisconnectSocket]);
+    }, [socket, onConnectSocket, onDisconnectSocket, handleOnSocketTyping, handleOnSocketStopTyping, onMessageReceived, onNewChat, onChatLeave, onGroupNameChange]);
 
     return (
         <>
@@ -177,9 +284,7 @@ const ChatPage: React.FC<{}> = () => {
                                 <ChatItemComponent
                                     isActive={UserChatObj.id === currentUserChat?.id}
                                     unreadCount={0}
-                                    onClick={(Chat: UserChatListDTO) => {
-                                        console.log("WE are in on click", Chat)
-                                        console.log("currentUserChat.current?.id ", currentUserChat?.id)
+                                    onClick={(Chat: ChatAndParticipentsDTO) => {
                                         if (
                                             currentUserChat?.id &&
                                             currentUserChat?.id === Chat.id
@@ -188,16 +293,15 @@ const ChatPage: React.FC<{}> = () => {
                                         }
                                         LocalStorage.set(USER_ACTIVE_CHAT_SESSION, Chat);
                                         setCurrentUserChat(Chat)
-                                        // currentUserChat = Chat;
-                                        // setMessage("");
-                                        // getMessages();
+                                        setMessage("");
+                                        getMessages();
                                     }}
                                     onChatDelete={(ChatID: string) => {
                                         setUserChatsList((prev) =>
                                             prev.filter((chat) => chat.id !== ChatID)
                                         );
                                         if (currentUserChat?.id === ChatID) {
-                                            setCurrentUserChat({} as UserChatListDTO)
+                                            setCurrentUserChat({} as ChatAndParticipentsDTO)
                                             // currentUserChat.current = null;
                                             LocalStorage.remove(USER_ACTIVE_CHAT_SESSION);
                                         }
@@ -271,16 +375,16 @@ const ChatPage: React.FC<{}> = () => {
                                 ) : (
                                     <>
                                         {isTyping ? <TypingComponent /> : null}
-                                        {/* {messages?.map((msg) => {
-                      return (
-                        <MessageItemComponent
-                          key={msg._id}
-                          isOwnMessage={msg.sender?._id === context?.user.id}
-                          isGroupChatMessage={currentUserChat.is_group_chat}
-                          message={msg}
-                        />
-                      );
-                    })} */}
+                                        {chatMessages?.map((msg: ChatMessageDTO) => {
+                                            return (
+                                                <MessageItemComponent
+                                                    key={msg.id}
+                                                    isOwnMessage={msg.user.id === context?.user.id}
+                                                    isGroupChatMessage={currentUserChat.is_group_chat}
+                                                    message={msg}
+                                                />
+                                            );
+                                        })}
                                     </>
                                 )}
                             </div>
@@ -288,7 +392,7 @@ const ChatPage: React.FC<{}> = () => {
                                 <input
                                     className="w-full font-light bg-gray-50 border outline-none border-gray-300 text-gray-900  rounded-lg focus:ring-primary-600 focus:border-primary-600 block py-4 px-5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                                     placeholder="Message"
-                                    value={message}
+                                    value={messages}
                                     onChange={handleOnMessageChange}
                                 //   onKeyDown={(e) => {
                                 //     if (e.key === "Enter") {
@@ -298,7 +402,7 @@ const ChatPage: React.FC<{}> = () => {
                                 />
                                 <button
                                     onClick={sendChatMessage}
-                                    disabled={!message}
+                                    disabled={!messages}
                                     className="p-4 rounded-full bg-dark hover:bg-gray-300 disabled:opacity-50"
                                 >
                                     <PaperAirplaneIcon className="w-6 h-6" />

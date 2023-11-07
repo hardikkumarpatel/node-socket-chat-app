@@ -1,18 +1,17 @@
 /* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable jsx-a11y/img-redundant-alt */
 import {
-    PaperClipIcon,
     XMarkIcon,
 } from "@heroicons/react/20/solid";
 import moment from "moment";
 import { useState } from "react";
 import { classNames } from "../Utils";
+import { ChatMessageDTO } from "../interface/Chat.interface";
 
 const MessageItemComponent: React.FC<{
     isOwnMessage?: boolean;
     isGroupChatMessage?: boolean;
-    // message: ChatMessageInterface;
-    message: any;
+    message: ChatMessageDTO;
 }> = ({ message, isOwnMessage, isGroupChatMessage }) => {
     const [resizedImage, setResizedImage] = useState<string | null>(null);
     return (
@@ -37,7 +36,7 @@ const MessageItemComponent: React.FC<{
                 )}
             >
                 <img
-                    src={message.sender?.avatar?.url}
+                    src={message.user.avatar_url}
                     className={classNames(
                         "h-8 w-8 object-cover rounded-full flex flex-shrink-0",
                         isOwnMessage ? "order-2" : "order-1"
@@ -47,7 +46,7 @@ const MessageItemComponent: React.FC<{
                     className={classNames(
                         "p-4 rounded-3xl flex flex-col",
                         isOwnMessage
-                            ? "order-1 rounded-br-none bg-primary"
+                            ? "order-1 rounded-br-none bg-gray-500"
                             : "order-2 rounded-bl-none bg-secondary"
                     )}
                 >
@@ -56,28 +55,25 @@ const MessageItemComponent: React.FC<{
                             className={classNames(
                                 "text-xs font-semibold mb-2",
                                 ["text-success", "text-danger"][
-                                message.sender.username.length % 2
+                                message.user.username.length % 2
                                 ]
                             )}
                         >
-                            {message.sender?.username}
+                            {message.user.username}
                         </p>
                     ) : null}
 
 
                     {message.content ? (
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm text-white">{message.content}</p>
                     ) : null}
                     <p
                         className={classNames(
-                            "mt-1.5 self-end text-[10px] inline-flex items-center",
-                            isOwnMessage ? "text-zinc-50" : "text-zinc-400"
+                            "mt-1.5 self-end text-[10px] inline-flex items-center text-zinc-300"
                         )}
                     >
-                        {message.attachments?.length > 0 ? (
-                            <PaperClipIcon className="h-4 w-4 mr-2 " />
-                        ) : null}
-                        {moment(message.updatedAt).add("TIME_ZONE", "hours").fromNow(true)}{" "}
+
+                        {moment(message.updated_at).add("TIME_ZONE", "hours").fromNow(true)}{" "}
                         ago
                     </p>
                 </div>

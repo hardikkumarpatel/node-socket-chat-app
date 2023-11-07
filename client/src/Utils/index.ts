@@ -1,5 +1,5 @@
 import { USER_STORAGE } from "../constant/Constant";
-import { UserChatListDTO, UserDTO } from "../interface/Chat.interface";
+import { ChatAndParticipentsDTO } from "../interface/Chat.interface";
 import { UserDAO } from "../interface/User.interface";
 import { LocalStorage } from "./LocalStorage";
 
@@ -12,7 +12,7 @@ export const getUserToken = (): string => {
 }
 
 export const getChatObjectMetadata = (
-    chat: UserChatListDTO, // The chat item for which metadata is being generated.
+    chat: ChatAndParticipentsDTO, // The chat item for which metadata is being generated.
     loggedInUser: UserDAO // The currently logged-in user details.
 ) => {
     if (chat.is_group_chat) {

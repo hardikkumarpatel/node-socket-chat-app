@@ -55,8 +55,8 @@ class AppServer {
 
     private initSocketEngine = (): void => {
         this.server = createServer(this.app);
-        const IO: SockerServer = new SockerServer(this.server);
-        this.app.set('IO', IO);
+        const socketEngineInstance: SockerServer = new SockerServer(this.server);
+        this.app.set('IO', socketEngineInstance.IO);
     }
 
     private initRoutes = (): void => {
