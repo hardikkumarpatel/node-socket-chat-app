@@ -1,5 +1,4 @@
 # node-socket-chat-app
-# Hi, I'm Hardik Patel! 👋
 
 <h3>Tech Stack</h3> 
 <p>
